@@ -176,6 +176,36 @@ When creating a storage account, you must pick a **redundancy option**.
 
 ---
 
+### 🌍 GZRS and RA-GZRS
+
+#### 📘 GZRS (Geo-Zone Redundant Storage)
+- Combines **ZRS (zone redundancy)** and **GRS (geo redundancy)**.
+- Data is replicated:
+  - **3 copies across Availability Zones** in the primary region.
+  - **3 more copies** asynchronously to a **paired secondary region**.
+- Total = **6 copies of your data**.
+- Protects against:
+  - Disk or server failure.
+  - Datacenter outage.
+  - Entire region outage.
+
+**When to use:**
+- Mission-critical workloads where you need both **zone-level resilience** and **disaster recovery**.
+- Example: Banking or healthcare apps that can’t afford downtime or data loss.
+
+---
+
+#### 📘 RA-GZRS (Read-Access Geo-Zone Redundant Storage)
+- Same as **GZRS**, but the **secondary region is readable**.
+- Provides **read-only access** to your data in the secondary region.
+- Useful for **global applications** or during **regional outages**.
+
+**When to use:**
+- Global e-commerce sites serving content from multiple regions.
+- Analytics workloads that can query secondary data without affecting the primary region.
+
+---
+
 ### ⚡ Standard vs Premium
 
 - **Standard (HDD-based)**  
@@ -190,6 +220,24 @@ When creating a storage account, you must pick a **redundancy option**.
 
 ---
 
+### 📝 Comparison of Redundancy Options
+| Type     | Copies | Zones in Primary? | Secondary Region? | Read Secondary? | Protects Against |
+|----------|--------|-------------------|-------------------|-----------------|------------------|
+| **LRS**  | 3      | ❌ | ❌ | ❌ | Disk/server failure |
+| **ZRS**  | 3      | ✅ | ❌ | ❌ | Datacenter outage |
+| **GRS**  | 6      | ❌ | ✅ | ❌ | Region outage |
+| **RA-GRS** | 6    | ❌ | ✅ | ✅ | Region outage + Read access |
+| **GZRS** | 6      | ✅ | ✅ | ❌ | Zone + Region outage |
+| **RA-GZRS** | 6   | ✅ | ✅ | ✅ | Zone + Region outage + Read access |
+
+---
+
+### 💡 Exam Tip
+- If you see **“best of both worlds”** → think **GZRS** (zones + geo).  
+- If the question mentions **read access in secondary region** → answer with **RA-GZRS**.  
+- **Premium tier** supports only **LRS & ZRS**, **not** GRS/GZRS types.
+
+
 ### 💡 Real-World Example
 - Small test workload → **LRS**  
 - Regional web app with AZs → **ZRS**  
@@ -197,6 +245,34 @@ When creating a storage account, you must pick a **redundancy option**.
 - Global app needing failover reads → **RA-GRS**
 
 ---
+
+### 📑 How Many Copies Does Each Redundancy Type Keep?
+
+Azure Storage always maintains multiple copies of your data. The number and location of copies depend on redundancy type:
+
+| Redundancy Type | Copies in Primary Region | Copies in Secondary Region | Total Copies | Scope of Protection |
+|------------------|--------------------------|-----------------------------|--------------|----------------------|
+| **LRS** (Locally Redundant Storage) | 3 (single datacenter) | 0 | 3 | Protects against **disk/server failure** only. |
+| **ZRS** (Zone Redundant Storage) | 3 (across Availability Zones in one region) | 0 | 3 | Protects against **datacenter failure**, but not full region outage. |
+| **GRS** (Geo-Redundant Storage) | 3 (single datacenter) | 3 (paired secondary region) | 6 | Protects against **region outage**, but secondary is not accessible. |
+| **RA-GRS** (Read-Access GRS) | 3 (single datacenter) | 3 (paired secondary region, **readable**) | 6 | Same as GRS + **read access to secondary**. |
+| **GZRS** (Geo-Zone Redundant Storage) | 3 (across AZs in primary region) | 3 (secondary region) | 6 | Combines ZRS + GRS, protects against **zonal + regional outages**. |
+| **RA-GZRS** (Read-Access GZRS) | 3 (AZs in primary) | 3 (secondary, **readable**) | 6 | Same as GZRS + **read access to secondary**. |
+
+---
+
+### 💡 Quick Exam Memory Trick
+- **3 copies** in single region = **LRS / ZRS**  
+- **6 copies total** (3 local + 3 secondary) = **GRS / RA-GRS / GZRS / RA-GZRS**  
+- **RA = Read Access** → you can query the **secondary region**.  
+
+---
+
+### ✅ Best Practices
+- Always check **region availability** → not all redundancy options exist in all Azure regions.  
+- For **Premium performance tier** → only **LRS** and **ZRS** are supported.  
+- For **mission-critical workloads** → prefer **ZRS** or **GZRS** over LRS.  
+
 
 ### ✅ Exam Tip
 - If asked: “Which redundancy provides highest durability?” → **RA-GRS**.  
