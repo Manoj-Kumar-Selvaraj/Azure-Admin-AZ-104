@@ -1,6 +1,11 @@
 param location string = resourceGroup().location
 param environment string = 'dev'
 param storageAccountName string = 'sta${uniqueString(resourceGroup().id)}'
+// Flag to enable customer-managed key (CMK) encryption
+param useCmk bool = false
+param keyVaultUri string = ''
+param keyName string = ''
+param keyVersion string = ''
 
 // Storage Account configuration
 resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
@@ -15,21 +20,18 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
         allowBlobPublicAccess: false
         supportsHttpsTrafficOnly: true
         encryption: {
-            services: {
-                blob: {
-                    enabled: true
+                keySource: useCmk ? 'Microsoft.Keyvault' : 'Microsoft.Storage'
+                keyvaultproperties: useCmk ? {
+                    keyvaulturi: keyVaultUri
+                    keyname: keyName
+                    keyversion: keyVersion
+                } : null
+                services: {
+                    blob: { enabled: true }
+                    file: { enabled: true }
+                    queue: { enabled: true }
+                    table: { enabled: true }
                 }
-                file: {
-                    enabled: true
-                }
-                queue: {
-                    enabled: true
-                }
-                table: {
-                    enabled: true
-                }
-            }
-            keySource: 'Microsoft.Storage'
         }
         networkAcls: {
             bypass: 'AzureServices'
@@ -59,8 +61,42 @@ resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2023-01-01'
             days: 7
         }
         isVersioningEnabled: true
+                // Lifecycle management policy: Move blobs to cool tier after 30 days, delete after 90 days
+                // You can customize rules as needed
+                // See: https://learn.microsoft.com/en-us/azure/storage/blobs/lifecycle-management-policy-configure
+                // Add a management policy resource
+        }
+}
+
+resource blobLifecycle 'Microsoft.Storage/storageAccounts/managementPolicies@2021-04-01' = {
+    name: 'default'
+    parent: storageAccount
+    properties: {
+        policy: {
+            rules: [
+                {
+                    enabled: true
+                    name: 'move-to-cool-and-delete'
+                    type: 'Lifecycle'
+                    definition: {
+                        filters: {
+                            blobTypes: [ 'blockBlob' ]
+                            prefixMatch: [ '' ] // Applies to all blobs
+                        }
+                        actions: {
+                            baseBlob: {
+                                tierToCool: { daysAfterModificationGreaterThan: 30 }
+                                delete: { daysAfterModificationGreaterThan: 90 }
+                            }
+                        }
+                    }
+                }
+            ]
+        }
     }
 }
+    
+
 
 // Example container
 resource exampleContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {

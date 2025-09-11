@@ -379,6 +379,7 @@ azcopy sync '/local/folder' 'https://<storage-account>.blob.core.windows.net/<co
 
 ---
 
+az deployment group create --resource-group Azure-Admin-Prep --template-file /workspaces/Azure-Admin-AZ-104/storage/storage.bicep
 
 
 
