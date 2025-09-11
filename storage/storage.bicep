@@ -1,0 +1,78 @@
+param location string = resourceGroup().location
+param environment string = 'dev'
+param storageAccountName string = 'sta${uniqueString(resourceGroup().id)}'
+
+// Storage Account configuration
+resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
+    name: storageAccountName
+    location: location
+    sku: {
+        name: 'Standard_LRS'  // Can be Standard_LRS, Standard_GRS, Standard_RAGRS, Standard_ZRS, Premium_LRS
+    }
+    kind: 'StorageV2'      // Can be StorageV2, BlockBlobStorage, FileStorage
+    properties: {
+        minimumTlsVersion: 'TLS1_2'
+        allowBlobPublicAccess: false
+        supportsHttpsTrafficOnly: true
+        encryption: {
+            services: {
+                blob: {
+                    enabled: true
+                }
+                file: {
+                    enabled: true
+                }
+                queue: {
+                    enabled: true
+                }
+                table: {
+                    enabled: true
+                }
+            }
+            keySource: 'Microsoft.Storage'
+        }
+        networkAcls: {
+            bypass: 'AzureServices'
+            defaultAction: 'Deny'
+            ipRules: []
+            virtualNetworkRules: []
+        }
+        accessTier: 'Hot'    // Can be Hot or Cool
+    }
+    tags: {
+        environment: environment
+        purpose: 'General Storage'
+    }
+}
+
+// Blob Service configuration
+resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2023-01-01' = {
+    parent: storageAccount
+    name: 'default'
+    properties: {
+        deleteRetentionPolicy: {
+            enabled: true
+            days: 7
+        }
+        containerDeleteRetentionPolicy: {
+            enabled: true
+            days: 7
+        }
+        isVersioningEnabled: true
+    }
+}
+
+// Example container
+resource exampleContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
+    parent: blobService
+    name: 'mycontainer'
+    properties: {
+        publicAccess: 'None'
+        metadata: {}
+    }
+}
+
+// Outputs
+output storageAccountName string = storageAccount.name
+output storageAccountId string = storageAccount.id
+output primaryEndpoint object = storageAccount.properties.primaryEndpoints

@@ -295,5 +295,91 @@ When creating a storage account, you must pick a **redundancy option**.
 - If only 2 redundancy options are visible in Portal → It’s due to **region limitations**.
 
 
+---
+
+## Configure Encryption
+
+### 📘 Encryption at Rest
+
+- **Default Protection**: All Azure Storage data is encrypted at rest using 256-bit AES encryption, managed by Microsoft. This is transparent and automatic—no configuration required for baseline security.
+- **Customer-Managed Keys (CMK)**: For regulatory compliance or advanced control, you can use your own keys stored in Azure Key Vault. This allows you to rotate, disable, or audit key usage.
+  - **Setup Steps**:
+    1. Create an Azure Key Vault and generate a key.
+    2. Assign the storage account access to the Key Vault (using a managed identity).
+    3. Configure the storage account to use the Key Vault key for encryption.
+    4. Optionally, enable key auto-rotation.
+- **Double Encryption**: Some regions/storage types support double encryption, layering two independent encryption algorithms for extra protection.
+- **Encryption Scope**: You can set encryption scopes at the container or blob level, allowing different keys for different data sets.
+
+### 📘 Encryption in Transit
+
+- **HTTPS Required**: All data transferred to/from Azure Storage should use HTTPS. You can enforce this by setting `Secure transfer required` to `Enabled` on the storage account.
+- **SMB Encryption**: For Azure Files, SMB 3.0 encryption can be enabled for secure file share access.
+
+### 🛠️ Pro Tips
+
+- **Audit Key Usage**: Use Azure Key Vault logging to monitor key access and operations.
+- **Key Rotation**: Regularly rotate CMKs for compliance; Azure Key Vault supports automatic rotation.
+- **Access Control**: Restrict who can manage encryption settings using RBAC and Key Vault policies.
+
+### 💡 Exam & Real-World Tips
+
+- Know the difference between Microsoft-managed and customer-managed keys.
+- Understand how to enforce HTTPS and SMB encryption.
+- Be aware of compliance scenarios (e.g., GDPR, HIPAA) that require CMK or double encryption.
+
+---
+
+## Manage Data with Storage Explorer & AzCopy
+
+### 📘 Azure Storage Explorer
+
+- **GUI Tool**: Cross-platform desktop application for managing Azure Storage resources (blobs, files, queues, tables).
+- **Authentication**: Supports Azure AD, account keys, and SAS tokens.
+- **Capabilities**:
+  - Browse containers, upload/download files, manage snapshots and soft delete.
+  - Set access policies, manage file shares, and configure metadata.
+  - Connect to multiple subscriptions and storage accounts.
+
+### 📘 AzCopy
+
+- **CLI Tool**: High-performance command-line utility for bulk data transfer to/from Azure Storage.
+- **Authentication**: Supports Azure AD, account keys, and SAS tokens.
+- **Capabilities**:
+  - Upload/download blobs, files, and directories.
+  - Sync local folders with blob containers.
+  - Copy data between storage accounts or containers.
+  - Resume interrupted transfers and optimize for large datasets.
+
+#### 🛠️ Common AzCopy Commands
+
+```bash
+# Upload a file to a blob container
+azcopy copy '/path/to/local/file.txt' 'https://<storage-account>.blob.core.windows.net/<container>/file.txt?<SAS-token>' --overwrite=true
+
+# Download a blob to local
+azcopy copy 'https://<storage-account>.blob.core.windows.net/<container>/file.txt?<SAS-token>' '/path/to/local/file.txt'
+
+# Sync a local folder to a blob container
+azcopy sync '/local/folder' 'https://<storage-account>.blob.core.windows.net/<container>?<SAS-token>'
+```
+
+### 🛠️ Pro Tips
+
+- **Bulk Migration**: Use AzCopy for large-scale migrations; it’s faster and scriptable compared to GUI tools.
+- **Automation**: Integrate AzCopy into CI/CD pipelines for automated uploads/downloads.
+- **SAS Tokens**: Use short-lived SAS tokens for secure, temporary access during transfers.
+- **Performance**: AzCopy supports parallelism and can resume failed transfers, making it ideal for unreliable networks.
+
+### 💡 Exam & Real-World Tips
+
+- Know when to use Storage Explorer (GUI, ad-hoc tasks) vs AzCopy (CLI, automation, bulk transfer).
+- Understand authentication options and best practices for secure access.
+- Be familiar with troubleshooting transfer failures (network, permissions, SAS expiry).
+
+---
+
+
+
 
   
