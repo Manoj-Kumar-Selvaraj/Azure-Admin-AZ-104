@@ -381,6 +381,180 @@ azcopy sync '/local/folder' 'https://<storage-account>.blob.core.windows.net/<co
 
 az deployment group create --resource-group Azure-Admin-Prep --template-file /workspaces/Azure-Admin-AZ-104/storage/storage.bicep
 
+---
+
+azcopy [command] [arguments] [flags]
+
+---
+
+# 🔹 What is a Shared Access Signature (SAS)?
+
+A **SAS** is a **URI with a query string** that grants **restricted, time-bound access** to Azure Storage resources without exposing the storage account key.
+
+* SAS can apply to: **Blob, File, Queue, Table**.
+* SAS includes **permissions**, **start/end time**, **protocols (HTTPS)**, **IP restrictions**.
+
+📌 Exam Tip: SAS is a **delegated access mechanism**. It’s a must-know concept for secure access control in Azure Storage.
+
+---
+
+# 🔹 Types of SAS
+
+1. **Service SAS** – scoped to a specific resource (e.g., one container or blob) [Docs](https://learn.microsoft.com/en-us/rest/api/storageservices/create-service-sas).
+2. **Account SAS** – applies to multiple services in a storage account [Docs](https://learn.microsoft.com/en-us/rest/api/storageservices/delegate-access-with-shared-access-signature).
+3. **User Delegation SAS** – issued using Microsoft Entra ID (Azure AD) instead of storage keys; more secure [Docs](https://learn.microsoft.com/en-us/rest/api/storageservices/create-user-delegation-sas).
+
+📌 Exam Tip: **Prefer User Delegation SAS** where possible — avoids using account keys.
+
+---
+
+# 🔹 Anatomy of a SAS Token
+
+Example:
+
+```
+?sv=2023-11-03&ss=b&srt=sco&sp=rl&se=2025-09-22T12:00:00Z&st=2025-09-21T00:00:00Z&spr=https&sig=abc123...
+```
+
+* `sv` = Storage Service Version
+* `ss` = Services (b = blob, f = file, q = queue, t = table)
+* `srt` = Resource types (s = service, c = container, o = object)
+* `sp` = Permissions (r = read, w = write, d = delete, l = list, etc.)
+* `se` = Expiry time
+* `st` = Start time
+* `spr` = Protocol (https/http, https recommended)
+* `sig` = Signature (HMAC)
+
+📌 Exam Tip: Be able to **identify permissions (`sp`) and expiry (`se`)** in a SAS string.
+
+---
+
+# 🔹 How to Create SAS
+
+### 1. **Azure Portal**
+
+* Go to **Storage Account → Security + networking → Shared access signature**.
+* Choose:
+
+  * Services (Blob/File/Queue/Table)
+  * Resource types
+  * Permissions
+  * Start & Expiry time
+  * Protocol (HTTPS recommended)
+* Click **Generate SAS and connection string**.
+
+---
+
+### 2. **Azure CLI**
+
+* **Service SAS**
+
+```bash
+az storage container generate-sas \
+  --account-name mystorageacct \
+  --name mycontainer \
+  --permissions rl \
+  --expiry 2025-09-22T12:00:00Z \
+  --auth-mode key
+```
+
+* **User Delegation SAS** (Entra ID-based, more secure) [Docs](https://learn.microsoft.com/en-us/azure/storage/blobs/storage-blob-user-delegation-sas-create-cli):
+
+```bash
+az login
+az storage container generate-sas \
+  --account-name mystorageacct \
+  --name mycontainer \
+  --permissions rl \
+  --expiry 2025-09-22T12:00:00Z \
+  --auth-mode login \
+  --as-user
+```
+
+---
+
+### 3. **PowerShell**
+
+```powershell
+New-AzStorageContainerSASToken `
+   -Name mycontainer `
+   -Permission rwdl `
+   -ExpiryTime (Get-Date).AddHours(1) `
+   -Context $ctx
+```
+
+---
+
+### 4. **Python SDK** (User Delegation SAS) [Docs](https://learn.microsoft.com/en-us/azure/storage/blobs/storage-blob-user-delegation-sas-create-python):
+
+```python
+from azure.storage.blob import BlobServiceClient, generate_blob_sas, ResourceTypes, AccountSasPermissions
+
+service_client = BlobServiceClient(account_url="https://mystorageacct.blob.core.windows.net", credential=credential)
+
+udk = service_client.get_user_delegation_key("2025-09-21T00:00:00Z", "2025-09-22T12:00:00Z")
+
+sas = generate_blob_sas(
+    account_name="mystorageacct",
+    container_name="mycontainer",
+    blob_name="myblob.txt",
+    user_delegation_key=udk,
+    permission="r",
+    expiry="2025-09-22T12:00:00Z"
+)
+
+print(sas)
+```
+
+---
+
+# 🔹 Using a SAS
+
+* **Direct URL**
+
+```
+https://mystorageacct.blob.core.windows.net/mycontainer/myblob.txt?<SAS>
+```
+
+* **AzCopy**
+
+```bash
+azcopy copy "https://mystorageacct.blob.core.windows.net/mycontainer/myblob.txt?<SAS>" .
+```
+
+---
+
+# 🔹 Revoking a SAS
+
+* **You cannot revoke an ad-hoc SAS** (until expiry).
+* To revoke early: use a **Stored Access Policy** [Docs](https://learn.microsoft.com/en-us/rest/api/storageservices/define-stored-access-policy).
+
+```bash
+az storage container policy create \
+  --account-name mystorageacct \
+  --container-name mycontainer \
+  --name readonlypolicy \
+  --permissions rl \
+  --expiry 2025-09-22T12:00:00Z
+```
+
+Then generate SAS linked to that policy. Deleting/updating the policy **invalidates all SAS tokens tied to it**.
+
+📌 Exam Tip: **Stored Access Policies = revocation & reusability**.
+
+---
+
+# 🔹 Best Practices (exam must-knows)
+
+* Use **User Delegation SAS** with Microsoft Entra ID where possible.
+* Always use **HTTPS only** (`spr=https`).
+* Apply **least privilege permissions** (only what’s needed).
+* Keep **expiry short**.
+* Use **Stored Access Policies** if revocation is required.
+* Avoid embedding SAS tokens in code — use **Key Vault** or **Azure Managed Identities** instead.
+
+---
+
 
 
   
