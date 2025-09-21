@@ -1,6 +1,9 @@
 param location string = resourceGroup().location
 param environment string = 'dev'
 param storageAccountName string = 'sta${uniqueString(resourceGroup().id)}'
+param location string = resourceGroup().location
+param environment string = 'dev'
+param storageAccountName string = 'sta${uniqueString(resourceGroup().id)}'
 // Flag to enable customer-managed key (CMK) encryption
 param useCmk bool = false
 param keyVaultUri string = ''

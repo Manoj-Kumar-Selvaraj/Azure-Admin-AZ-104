@@ -177,6 +177,77 @@ When creating a storage account, you must pick a **redundancy option**.
 ---
 
 ### 🌍 GZRS and RA-GZRS
+#### 5. Geo-Zone Redundant Storage (GZRS) & Read-Access GZRS (RA-GZRS)
+- Combines zone redundancy (ZRS) and geo-redundancy (GRS).
+- Data is replicated across zones in the primary region and asynchronously to a secondary region.
+- RA-GZRS allows read access to the secondary region.
+
+**Use when:**
+- Need both zone and geo redundancy for highest durability and DR.
+- Critical workloads requiring maximum protection.
+
+---
+
+### 🔒 Encryption in Azure Storage
+
+- **At Rest:** All data is encrypted by default using 256-bit AES. No action needed for basic protection.
+- **Customer-Managed Keys (CMK):** For compliance, you can use your own keys in Azure Key Vault. Requires setup and incurs cost.
+- **In Transit:** Data is encrypted using HTTPS. Always enforce secure transfer.
+- **Double Encryption:** Some regions/storage types support two layers of encryption for extra protection.
+
+**Exam Tips:**
+- Know the difference between Microsoft-managed and customer-managed keys.
+- Understand how to enforce HTTPS and when CMK is required.
+
+---
+
+### 🔐 Network Access & Security
+
+- **Firewalls:** Restrict access to trusted networks/IPs.
+- **Private Endpoints:** Integrate storage with Azure VNet for private connectivity.
+- **Shared Access Signatures (SAS):** Grant granular, time-limited access to storage resources.
+- **Identity-based Access:** Use Azure AD for authentication to Azure Files and Blobs.
+
+**Exam Tips:**
+- Know how to configure firewalls, VNets, and SAS tokens.
+- Understand RBAC and identity-based access for storage.
+
+---
+
+### 🔄 Lifecycle Management
+
+- Automate blob tiering and deletion using lifecycle management policies.
+- Example: Move blobs to cool tier after 30 days, delete after 90 days.
+- Configure via Azure Portal, CLI, ARM/Bicep, or REST API.
+
+**Exam Tips:**
+- Know how to write and apply lifecycle rules for cost optimization.
+
+---
+
+### 🛠️ Storage Explorer & AzCopy
+
+- **Azure Storage Explorer:** GUI tool for managing blobs, files, queues, tables. Supports Azure AD, keys, SAS.
+- **AzCopy:** CLI for fast, scriptable data transfer and migration.
+  - Upload: `azcopy copy '/local/file.txt' 'https://<account>.blob.core.windows.net/<container>/file.txt?<SAS-token>'`
+  - Download: `azcopy copy 'https://<account>.blob.core.windows.net/<container>/file.txt?<SAS-token>' '/local/file.txt'`
+  - Sync: `azcopy sync '/local/folder' 'https://<account>.blob.core.windows.net/<container>?<SAS-token>'`
+
+**Exam Tips:**
+- Know when to use Storage Explorer vs AzCopy.
+- Understand authentication options and troubleshooting for bulk data migration.
+
+---
+
+### 📝 Real-World & Exam Scenarios
+
+- Always choose GPv2 unless premium performance or legacy migration is required.
+- Use GZRS/RA-GZRS for mission-critical, globally distributed workloads.
+- Apply lifecycle management to optimize costs for infrequently accessed data.
+- Use CMK for compliance-driven environments.
+- Secure storage with firewalls, private endpoints, and SAS tokens.
+
+---
 
 #### 📘 GZRS (Geo-Zone Redundant Storage)
 - Combines **ZRS (zone redundancy)** and **GRS (geo redundancy)**.
@@ -554,6 +625,420 @@ Then generate SAS linked to that policy. Deleting/updating the policy **invalida
 * Avoid embedding SAS tokens in code — use **Key Vault** or **Azure Managed Identities** instead.
 
 ---
+
+---
+
+## 📘 Main Topic: Configure firewalls and VNets for Storage
+
+We’ll split into these **sub-topics**:
+
+1. **Default network access to storage accounts**
+2. **Configure firewall rules (IP-based access)**
+3. **Configure VNet service endpoints for storage**
+4. **Configure Private Endpoints (Private Link)**
+5. **Differences: Service Endpoints vs Private Endpoints**
+6. **Testing & troubleshooting network restrictions**
+7. **Best practices & exam tips**
+
+---
+
+### 🔹 Sub-Topic 1: Default network access to storage accounts
+
+#### 1. Concept
+
+* By default, **storage accounts allow access from all networks**.
+* For security, you can restrict access so only:
+
+  * **Selected IP ranges** (firewall rules).
+  * **Specific Virtual Networks (VNets)**.
+  * **Private Endpoints** (preferred for production).
+
+This is controlled under:
+**Azure Portal → Storage Account → Networking → Firewalls and virtual networks**.
+
+---
+
+#### 2. Options in “Networking”
+
+* **All networks** – anyone on the internet can access (default, less secure).
+* **Selected networks** – restrict by firewall rules (IP ranges) or VNets.
+* **Disabled** – no access except via trusted Microsoft services or Private Endpoint.
+
+---
+
+#### 3. Key Exam Points
+
+* **By default = All networks allowed**.
+* Switching to **Selected networks** immediately blocks everything except:
+
+  * Explicit IP addresses you add.
+  * VNets you configure.
+  * Private endpoints (if configured).
+* “**Allow trusted Microsoft services**” = lets services like Azure Backup, Azure Monitor, etc. bypass firewall (important for exam).
+
+---
+
+#### 4. Azure Portal Steps
+
+1. Go to **Storage Account** → **Networking**.
+2. Under **Public network access**, choose **Selected networks**.
+3. Save.
+
+Now, only IPs/VNets you add will have access.
+
+---
+
+#### 5. CLI Example
+
+Check current network rules:
+
+```bash
+az storage account network-rule list \
+  --resource-group MyRG \
+  --account-name mystorageacct
+```
+
+Deny all by default:
+
+```bash
+az storage account update \
+  --resource-group MyRG \
+  --name mystorageacct \
+  --default-action Deny
+```
+
+---
+
+✅ **Exam Tip:** The phrase **“default action = Allow/Deny”** is critical. If `Deny` is set, access must come from **firewall IP rules, VNet rules, or private endpoints**.
+
+---
+
+## 🔹 Sub-Topic 2: Configure Firewall Rules (IP-based Access)
+
+### 1. Concept
+
+* A **storage account firewall** lets you restrict access to **specific public IP addresses or IP ranges**.
+* Useful when:
+
+  * You want developers/admins to connect only from office/home IPs.
+  * You don’t want the whole internet to hit your storage account.
+
+📌 This is **layer 1 restriction** — IP-based filtering before VNet or Private Endpoint rules.
+
+---
+
+### 2. How it Works
+
+* You set `default-action = Deny` (blocks everything).
+* Then you **add IP rules**:
+
+  * Single IP: `20.30.40.50`
+  * Range: `20.30.40.0/24`
+* Only these IPs can reach the storage account.
+* Any other IP is blocked at the firewall level.
+
+---
+
+### 3. Azure Portal Steps
+
+1. Go to **Storage Account → Networking**.
+2. Under **Firewalls and virtual networks**, select **Selected networks**.
+3. Under **Firewall**, add:
+
+   * Specific IP (e.g., your public home IP).
+   * Range (e.g., `10.0.0.0/16`).
+4. Save.
+5. Test: Try accessing the blob from an unauthorized IP → access denied.
+
+---
+
+### 4. CLI Commands
+
+Set default deny:
+
+```bash
+az storage account update \
+  --resource-group MyRG \
+  --name mystorageacct \
+  --default-action Deny
+```
+
+Add a firewall rule for single IP:
+
+```bash
+az storage account network-rule add \
+  --resource-group MyRG \
+  --account-name mystorageacct \
+  --ip-address 20.30.40.50
+```
+
+Add a firewall rule for range:
+
+```bash
+az storage account network-rule add \
+  --resource-group MyRG \
+  --account-name mystorageacct \
+  --ip-address 20.30.40.0/24
+```
+
+---
+
+### 5. PowerShell Example
+
+```powershell
+# Block all by default
+Update-AzStorageAccountNetworkRuleSet `
+   -ResourceGroupName MyRG `
+   -Name mystorageacct `
+   -DefaultAction Deny
+
+# Add IP rule
+Add-AzStorageAccountNetworkRule `
+   -ResourceGroupName MyRG `
+   -Name mystorageacct `
+   -IPAddressOrRange 20.30.40.50
+```
+
+---
+
+### 6. Key Exam Notes
+
+* IP firewall rules apply to **IPv4** only (IPv6 is not supported yet for firewall rules).
+* If `default-action = Deny`, you must add at least:
+
+  * An IP rule, OR
+  * A VNet rule, OR
+  * A Private Endpoint.
+* **Trusted Microsoft services** (like Azure Backup, Monitor) can bypass firewall if you enable the checkbox.
+* **Exam trap**: If you block all and forget to add your current client IP, you’ll lock yourself out.
+
+---
+
+## 🔹 Sub-Topic 3: Configure VNet Service Endpoints for Storage
+
+### 1. Concept
+
+* **Service Endpoints** extend your VNet’s private address space into Azure services.
+* When you enable a **VNet service endpoint** for Azure Storage:
+
+  * Traffic from your VNet to the storage account **goes over Azure backbone** (not the public internet).
+  * You can restrict the storage account to **only accept traffic from that VNet/subnet**.
+* This provides **better security** than just IP firewall rules.
+
+---
+
+### 2. Key Characteristics
+
+* Works with **public endpoint** of storage account, not private IP.
+* Restriction is **VNet/subnet-level**, not IP-level.
+* Traffic still uses the storage account’s **public FQDN** (like `mystorageacct.blob.core.windows.net`) — but it comes from the **VNet service endpoint**.
+* You can allow multiple VNets/subnets.
+
+---
+
+### 3. Azure Portal Steps
+
+1. Go to **Storage Account → Networking**.
+2. Under **Firewalls and virtual networks**, choose **Selected networks**.
+3. Click **+ Add existing virtual network**.
+4. Select subscription, VNet, and subnet.
+5. Save.
+6. Test:
+
+   * A VM inside the VNet can access the storage account.
+   * A VM outside the VNet gets **403 (forbidden)**.
+
+---
+
+### 4. CLI Example
+
+Enable service endpoint on a subnet:
+
+```bash
+az network vnet subnet update \
+  --resource-group MyRG \
+  --vnet-name MyVNet \
+  --name MySubnet \
+  --service-endpoints Microsoft.Storage
+```
+
+Add the VNet rule to storage account:
+
+```bash
+az storage account network-rule add \
+  --resource-group MyRG \
+  --account-name mystorageacct \
+  --vnet-name MyVNet \
+  --subnet MySubnet
+```
+
+---
+
+### 5. PowerShell Example
+
+```powershell
+# Enable service endpoint
+Set-AzVirtualNetworkSubnetConfig `
+   -VirtualNetwork $vnet `
+   -Name "MySubnet" `
+   -AddressPrefix "10.0.1.0/24" `
+   -ServiceEndpoint Microsoft.Storage
+
+# Apply rule to storage
+Add-AzStorageAccountNetworkRule `
+   -ResourceGroupName MyRG `
+   -Name mystorageacct `
+   -VirtualNetworkResourceId $subnet.Id
+```
+
+---
+
+### 6. Exam Notes
+
+* **Service Endpoints vs Firewall**:
+
+  * Firewall restricts by IP.
+  * Service Endpoints restrict by **VNet/subnet identity**.
+* **Still uses public IP** → not a private IP address.
+* Must **enable service endpoint on the subnet** before adding it to storage firewall.
+* Service endpoints **don’t work across regions** (storage account + VNet must be in same region).
+* When `default-action = Deny` → only allowed VNets can access.
+
+---
+
+## 🔹 Sub-Topic 4: Configure Private Endpoints (Private Link for Storage)
+
+### 1. Concept
+
+* A **Private Endpoint** assigns a **private IP address from your VNet** to your storage account.
+* Instead of going through the **public endpoint**, traffic goes through **Azure Private Link** over the Microsoft backbone.
+* This means:
+
+  * No exposure to the internet.
+  * Storage account is reachable only from within your VNet (or connected VNets/on-premises via VPN/ExpressRoute).
+
+✅ **Most secure option** for production.
+
+---
+
+### 2. Key Characteristics
+
+* A **Private Endpoint = NIC** inside your subnet.
+* Storage account gets a **private FQDN mapping**:
+
+  ```
+  mystorageacct.privatelink.blob.core.windows.net
+  ```
+* Public DNS for `mystorageacct.blob.core.windows.net` resolves to the **private IP** if you configure DNS correctly.
+* Supports all services: **Blob, File, Queue, Table** (but you must create one private endpoint per service).
+
+---
+
+### 3. Azure Portal Steps
+
+1. Go to **Storage Account → Networking → Private endpoint connections**.
+2. Click **+ Private endpoint**.
+3. Select subscription, resource group, and storage account.
+4. Choose **Target sub-resource**:
+
+   * `blob` (for blob service)
+   * `file` (for file shares)
+   * `queue`
+   * `table`
+5. Select VNet and subnet.
+6. (Optional) Configure **Private DNS zone** `privatelink.blob.core.windows.net`.
+7. Create.
+8. Test:
+
+   * VM in VNet → access works via private IP.
+   * Outside VNet → denied.
+
+---
+
+### 4. CLI Example
+
+Create private endpoint:
+
+```bash
+az network private-endpoint create \
+  --name MyPrivateEP \
+  --resource-group MyRG \
+  --vnet-name MyVNet \
+  --subnet MySubnet \
+  --private-connection-resource-id $(az storage account show \
+       --name mystorageacct \
+       --resource-group MyRG \
+       --query id -o tsv) \
+  --group-id blob \
+  --connection-name mystorageacct-privatelink
+```
+
+Configure DNS:
+
+```bash
+az network private-dns zone create \
+  --resource-group MyRG \
+  --name privatelink.blob.core.windows.net
+
+az network private-dns link vnet create \
+  --resource-group MyRG \
+  --zone-name privatelink.blob.core.windows.net \
+  --name MyDNSLink \
+  --virtual-network MyVNet \
+  --registration-enabled false
+
+az network private-dns record-set a add-record \
+  --resource-group MyRG \
+  --zone-name privatelink.blob.core.windows.net \
+  --record-set-name mystorageacct \
+  --ipv4-address 10.0.0.5
+```
+
+---
+
+### 5. PowerShell Example
+
+```powershell
+New-AzPrivateEndpoint `
+   -Name MyPrivateEP `
+   -ResourceGroupName MyRG `
+   -Location eastus `
+   -Subnet $subnet `
+   -PrivateLinkServiceConnection @(New-AzPrivateLinkServiceConnection `
+       -Name mystorageacct-privatelink `
+       -PrivateLinkServiceId $storage.Id `
+       -GroupId "blob")
+```
+
+---
+
+### 6. Exam Notes
+
+* **Private Endpoints vs Service Endpoints**:
+
+  * Service Endpoint → still uses **public IP**, locked to VNet.
+  * Private Endpoint → uses **private IP**, no public internet exposure.
+* **DNS is critical** — if not configured, clients may still try to hit the public endpoint.
+* You need **1 private endpoint per sub-resource** (blob, file, queue, table).
+* Costs: Private endpoints incur **extra charges** vs service endpoints.
+* **Trusted Microsoft services** bypass is **not needed** with private endpoints (traffic doesn’t leave MS backbone).
+
+---
+
+| Feature                   | **Service Endpoint**                                      | **Private Endpoint (Private Link)**                                                 |
+| ------------------------- | --------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| **Network traffic**       | Goes over **public endpoint** but from **VNet source IP** | Goes over **private IP** in your VNet (completely private)                          |
+| **IP exposure**           | Uses storage account public IP                            | Uses **private IP from VNet subnet**                                                |
+| **DNS**                   | No special DNS needed                                     | Requires **private DNS zone** to resolve FQDN to private IP                         |
+| **Scope**                 | Restrict access **VNet/subnet**                           | Restrict access **VNet/subnet** + no internet exposure                              |
+| **Security**              | Traffic is secured but still over public endpoint         | Traffic **never goes to public internet**                                           |
+| **Cross-region**          | Works only within the same region                         | Works within same region; can combine with **Global VNet Peering** for multi-region |
+| **Supported services**    | Blob, File, Queue, Table                                  | Blob, File, Queue, Table                                                            |
+| **Resource per endpoint** | VNet/subnet-wide                                          | **1 private endpoint per sub-resource** (e.g., 1 for blob, 1 for file)              |
+| **Exam focus / usage**    | Quick VNet restriction, cheaper                           | High-security, production-ready, zero public exposure                               |
+
+
+
 
 
 
