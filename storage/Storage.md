@@ -1037,6 +1037,91 @@ New-AzPrivateEndpoint `
 | **Resource per endpoint** | VNet/subnet-wide                                          | **1 private endpoint per sub-resource** (e.g., 1 for blob, 1 for file)              |
 | **Exam focus / usage**    | Quick VNet restriction, cheaper                           | High-security, production-ready, zero public exposure                               |
 
+Perfect 💯 That’s the right mindset — not just checking answers, but finding **where the gap is** so you won’t miss these again in the real AZ-104 exam. Let’s go through each of the **wrong ones (Q2, Q5, Q7)** and break them down into **why you missed it + what you should remember**.
+
+---
+
+## 🔎 **Gap Analysis**
+
+### ❌ Q2 – Azure Files Authentication
+
+* **Your answer:** d) Configure private endpoints only
+* **Correct:** b) Configure Azure Files AD Authentication with Kerberos
+
+**Why you missed it:**
+You thought private endpoints = secure authentication. But **private endpoints only restrict network access**, they do not decide how authentication works. Authentication is about **identity + permissions**, not connectivity.
+
+**Key Concept to Fix Gap:**
+
+* **Azure Files Authentication options:**
+
+  1. **Azure AD DS or On-prem AD DS (Kerberos)** → for SMB access with domain accounts.
+  2. **Azure AD (Azure Files Identity-based auth)** → for Azure AD–joined machines.
+  3. **Shared keys / SAS** → not identity-based.
+* **Private endpoints** only lock access at the network level, they **don’t integrate with AD**.
+
+👉 **Exam Tip:** Always separate **network security (who can reach it)** from **authentication (who can access it)**.
+
+---
+
+### ❌ Q5 – RA-GRS Failover
+
+* **Your answer:** c) Both read and write automatically redirect to the secondary region
+* **Correct:** b) You can only read from the secondary region until Microsoft performs failover
+
+**Why you missed it:**
+You assumed failover is automatic. In fact, **RA-GRS provides only read access to the secondary region**, and writes are **never automatic**. Microsoft must perform (or you must trigger) a **manual failover** before writes can continue.
+
+**Key Concept to Fix Gap:**
+
+* **GRS (Geo-Redundant Storage):** Writes replicated asynchronously to secondary region.
+* **RA-GRS:** Adds **read-only access** to secondary.
+* **Failover:**
+
+  * Must be initiated (not automatic).
+  * During failover, DNS entry switches to secondary.
+  * After failover, RA-GRS becomes LRS in the new primary region.
+
+👉 **Exam Tip:** If you see **“automatic write redirection”** in answers → **wrong**. Azure storage replication is **not auto-failover** (only read is auto-available).
+
+---
+
+### ❌ Q7 – Storage Account Network Security
+
+* **Your answer:** c) Configure service endpoints for Azure Functions’ VNet
+* **Correct:** a) Enable “Allow trusted Microsoft services” in the firewall settings
+
+**Why you missed it:**
+You thought Azure Functions must be put inside a VNet with service endpoints. But in this scenario, Functions run as a **platform service (multi-tenant)**, not in your VNet.
+
+**Key Concept to Fix Gap:**
+
+* **Storage firewall options:**
+
+  * Allow specific VNets (with service endpoints or private endpoints).
+  * Allow specific public IPs.
+  * Allow **trusted Microsoft services** (like Azure Functions, Backup, Event Grid, etc.) to bypass firewall.
+* If you disable this, services like Functions can’t reach storage even if in the same subscription.
+
+👉 **Exam Tip:** Whenever Azure Functions, Backup, or other Azure services need storage access and the firewall blocks them → the answer is usually **“Allow trusted Microsoft services.”**
+
+---
+
+## 📝 Summary of Your Gaps
+
+1. **Q2 Gap:** Confused **network security vs. authentication.**
+
+   * Fix: Private endpoints ≠ authentication. For AD auth, think **Kerberos**.
+
+2. **Q5 Gap:** Misunderstood **RA-GRS failover model.**
+
+   * Fix: RA-GRS = read-only until failover. **No auto writes.**
+
+3. **Q7 Gap:** Misunderstood **Azure Functions + storage firewall.**
+
+   * Fix: Functions often need **“trusted Microsoft services”** enabled.
+
+---
 
 
 
