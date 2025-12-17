@@ -216,8 +216,155 @@ They **will not** ask you to memorize provider-level matrices. They **will** tes
 
 ---
 
-## Recommendation
+# Common Azure Resources That **DO NOT SUPPORT MOVE**
 
-Use this README as a **pre-exam revision sheet** and a **decision guide** during real-world troubleshooting.
+## 1. Identity, Governance & Control Plane (🚫 NEVER MOVE)
+
+If you see any of these → **answer is NO immediately**
+
+* Azure AD / Microsoft Entra ID
+* Tenants
+* Managed Identities
+* Role Assignments (RBAC)
+* Role Definitions
+* Policies
+* Policy Assignments
+* Locks
+* Blueprints
+* Management Groups
+* Subscriptions (cannot be moved, only reassociated)
+
+**Memory rule:**
+
+> *Identity & governance objects never move.*
+
+---
+
+## 2. Billing & Cost Management (🚫 NEVER MOVE)
+
+* Billing accounts
+* Invoices
+* Cost Management budgets
+* Reservations
+* Marketplace purchases
+* CSP-linked resources (often blocked)
+
+**Exam hint:**
+Billing objects are **global**, not ARM resources.
+
+---
+
+## 3. Networking Gateways & Edge Services (🚫 VERY COMMON TRAP)
+
+These are **frequently tested**.
+
+* Application Gateway
+* Azure Firewall
+* VPN Gateway
+* ExpressRoute Circuit
+* ExpressRoute Gateway
+* NAT Gateway
+* Bastion Host
+* Front Door (Classic / Standard / Premium)
+* Virtual WAN & VPN Sites
+
+**Memory rule:**
+
+> *Gateways don’t move.*
+
+---
+
+## 4. Platform & Orchestrated Services (🚫 CANNOT MOVE)
+
+* AKS (Azure Kubernetes Service)
+* Azure Container Instances
+* Azure Databricks
+* Azure Synapse Analytics
+* Azure Red Hat OpenShift
+* HDInsight (networking blocks most moves)
+* Service Fabric Managed Clusters
+
+**Exam pattern:**
+Managed / orchestrated services usually require **re-creation**, not move.
+
+---
+
+## 5. Security & Monitoring (Mostly 🚫)
+
+* Microsoft Defender for Cloud
+* Security Center
+* Security policies
+* Diagnostic settings
+* Activity logs
+* Azure Monitor metrics
+* Policy Insights
+
+**Exception (know this):**
+✔ Log Analytics Workspace → **can move**
+✔ Application Insights → **can move (with data caveats)**
+
+---
+
+## 6. Key Vault (⚠️ CONDITIONAL – Exam Favorite)
+
+* ❌ Key Vault used for **disk encryption** → cannot move
+* ❌ Managed HSM → cannot move
+* ✔ Normal Key Vault → RG / subscription move allowed
+
+**Exam trick:**
+If Key Vault encrypts disks → **move fails**
+
+---
+
+## 7. App Service Special “NO” Cases
+
+* API Management **Consumption SKU**
+* Function Apps between OS types
+* App Services across tenants
+* Deleted App Services
+* App Service Environment (ASE)
+
+---
+
+## 8. Data & Messaging – Common “NO”
+
+* Azure Redis Enterprise
+* Cosmos DB vCore (Mongo vCore, Cassandra)
+* IoT Hub Device Provisioning Service (DPS) (limited)
+* Azure Cognitive Search clusters (region move = recreate)
+
+---
+
+## Ultra-Short Exam Memory Card
+
+```
+NEVER MOVE:
+AAD, RBAC, Policy, Locks, Billing, Subscriptions
+
+NETWORK NO:
+Gateway, Firewall, VPN, ExpressRoute, Bastion
+
+PLATFORM NO:
+AKS, Databricks, Synapse, ARO
+
+KEY VAULT TRAP:
+Disk encryption → NO MOVE
+```
+
+---
+
+## How AZ-104 Questions Usually Look
+
+**“You attempt to move a resource and the operation fails. Why?”**
+
+Correct answers often include:
+
+* Resource has a **lock**
+* Resource is a **gateway**
+* Resource is **identity / governance**
+* Resource is **used for disk encryption**
+* Resource is **platform-managed**
+
+---
 
 For deep migrations, always validate against official Azure documentation.
